@@ -1,6 +1,6 @@
 #include "ll.h"
-#include "vm.h"
 #include "timer.h"
+#include "vm.h"
 
 #include <algorithm>
 #include <cassert>
@@ -9,26 +9,34 @@
 #include <iostream>
 #include <numeric>
 #include <random>
+#include <stdexcept>
+#include <vector>
+
+#if defined(_WIN32)
+#include <windows.h>
+
+#elif defined(__linux__)
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <vector>
+
+#endif
 
 /*
- * i5-7300U cache sizes:
+ * Ryzen 5 5600 cache sizes (per-core):
  *
- * L1d cache: 64 KiB (2 instances)
- * L2 cache: 512 KiB (2 instances)
- * L3 cache: 3 MiB (1 instance)
+ * L1d cache: 32 KiB (6 instances)
+ * L2 cache: 512 KiB (6 instances)
+ * L3 cache: 32 MiB (1 instance)
  *
  */
 
-#define KiB(n) (n << 10)
-#define MiB(n) (n << 20)
+#define KiB(n) ((n) << 10)
+#define MiB(n) ((n) << 20)
 
-constexpr size_t L1D_LIM = KiB(64) / sizeof(ll_node);
-constexpr size_t L2_LIM = KiB(512) / sizeof(ll_node);
-constexpr size_t L3_LIM = MiB(3) / sizeof(ll_node);
+constexpr size_t L1D_CAP = KiB(25) / sizeof(ll_node);
+constexpr size_t L2_CAP = KiB(410) / sizeof(ll_node);
+constexpr size_t L3_CAP = MiB(25) / sizeof(ll_node);
 
 struct random_cycle {
 	std::vector<ll_node *> nodes;
@@ -42,17 +50,26 @@ static random_cycle make_random_cycle(size_t count)
 	std::mt19937 rng{rd()};
 
 	const size_t page_size = vm_get_page_size();
-	size_t overallocate = count * 8;
-	size_t region_size = overallocate * page_size;
+	size_t region_size = count * page_size;
 
+#if defined(_WIN32)
+	void *region = VirtualAlloc(NULL, region_size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+
+	if (region == NULL) {
+		throw std::runtime_error("virtual alloc failed.\n");
+	}
+
+#elif defined(__linux__)
 	void *region = mmap(nullptr, region_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
 	if (region == MAP_FAILED) {
 		throw std::runtime_error("memory mapping failed.\n");
 	}
 
 	madvise(region, region_size, MADV_RANDOM);
+#endif
 
-	std::vector<size_t> page_offsets(overallocate);
+	std::vector<size_t> page_offsets(count);
 	std::iota(page_offsets.begin(), page_offsets.end(), 0);
 	std::shuffle(page_offsets.begin(), page_offsets.end(), rng);
 
@@ -63,36 +80,51 @@ static random_cycle make_random_cycle(size_t count)
 		nodes[i]->data = 0;
 	}
 
-	std::vector<size_t> positions(count);
-	std::iota(positions.begin(), positions.end(), 0);
-	std::shuffle(positions.begin(), positions.end(), rng);
-
 	for (size_t i = 0; i < count; ++i) {
-		nodes[positions[i]]->next = nodes[positions[(i + 1) % count]];
+		nodes[i]->next = nodes[(i + 1) % count];
 	}
 
 	return {nodes, region, region_size};
+}
+
+static size_t calc_repeats(const size_t set_size)
+{
+	// !!! SHOULD CALCULATE REPEAT SIZES AT RUNTIME !!!
+	// Return values here will be set as some arbitrary nubmers
+
+	if (set_size == L1D_CAP) {
+		return 62500;
+	}
+
+	if (set_size == L2_CAP)
+		return 2250;
+
+	return 5; // For L3
 }
 
 template <typename Fn> static double time_cycle(const random_cycle &cycle, size_t set_size, Fn per_node)
 {
 	Measurements::Timer timer;
 
+	size_t repeats{calc_repeats(set_size)};
+
 	ll_node *p = cycle.nodes[0];
 	timer.TimeSnapshot();
 
-	for (size_t i = 0; i < set_size; i++) {
-		per_node(p, i);
-		p = p->next;
+	for (size_t r = 0; r < repeats; r++) {
+		for (size_t i = 0; i < set_size; i++) {
+			per_node(p, i);
+			p = p->next;
+		}
 	}
 
 	volatile uintptr_t sink = (uintptr_t)p;
-	return timer.GetNanoseconds() / (double)set_size;
+	return timer.GetNanoseconds() / (double)(repeats * set_size);
 }
 
 static void run_test(size_t set_size, const char *label)
 {
-	assert((set_size == L1D_LIM || set_size == L2_LIM || set_size == L3_LIM) && "invalid set size.");
+	assert((set_size == L1D_CAP || set_size == L2_CAP || set_size == L3_CAP) && "invalid set size.");
 
 	random_cycle cycle = make_random_cycle(set_size);
 
@@ -102,14 +134,18 @@ static void run_test(size_t set_size, const char *label)
 	std::cout << label << " read time: " << read_ns << "ns | " << read_ns / 1000.0 << "us" << std::endl;
 	std::cout << label << " write time: " << write_ns << "ns | " << write_ns / 1000.0 << "us" << std::endl;
 
+#if defined(_WIN32)
+	VirtualFree(cycle.region, 0, MEM_RELEASE);
+#elif defined(__linux__)
 	munmap(cycle.region, cycle.region_size);
+#endif
 }
 
 int main()
 {
-	run_test(L1D_LIM, "L1D");
-	run_test(L2_LIM, "L2");
-	run_test(L3_LIM, "L3");
+	run_test(L1D_CAP, "L1D");
+	run_test(L2_CAP, "L2");
+	run_test(L3_CAP, "L3");
 
 	return 0;
 }

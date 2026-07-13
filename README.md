@@ -15,7 +15,7 @@ noise while keeping the total benchmark runtime short.
 ## Build
 
 ```
-g++ -std=c++17 -O2 -o cache-speed src/test.cpp src/vm.cpp src/timer.cpp
+g++ -std=c++17 -O2 -o cache-speed src/test.cpp src/ll.cpp src/benchmark.cpp src/vm.cpp src/timer.cpp
 ```
 
 ## Run

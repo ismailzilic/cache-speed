@@ -11,6 +11,10 @@
 #endif
 #include <unistd.h>
 
+#else
+
+#include <stdexcept>
+
 #endif
 
 uint32_t vm_get_page_size(void)
@@ -21,11 +25,7 @@ uint32_t vm_get_page_size(void)
 	return sysinfo.dwPageSize;
 #elif defined(__linux__)
 	return static_cast<uint32_t>(sysconf(_SC_PAGESIZE));
-
 #else
-
-#include <stdexcept>
 	throw std::runtime_error("unsupported platform.\n");
-
 #endif
 }

@@ -1,4 +1,5 @@
 #include "ll.h"
+#include "vm.h"
 #include "timer.h"
 
 #include <algorithm>
@@ -40,9 +41,9 @@ static random_cycle make_random_cycle(size_t count)
 	std::random_device rd;
 	std::mt19937 rng{rd()};
 
-	const size_t PAGE_SIZE = sysconf(_SC_PAGESIZE);
+	const size_t page_size = vm_get_page_size();
 	size_t overallocate = count * 8;
-	size_t region_size = overallocate * PAGE_SIZE;
+	size_t region_size = overallocate * page_size;
 
 	void *region = mmap(nullptr, region_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 	if (region == MAP_FAILED) {
@@ -57,7 +58,7 @@ static random_cycle make_random_cycle(size_t count)
 
 	std::vector<ll_node *> nodes(count);
 	for (size_t i = 0; i < count; ++i) {
-		nodes[i] = reinterpret_cast<ll_node *>(static_cast<char *>(region) + page_offsets[i] * PAGE_SIZE);
+		nodes[i] = reinterpret_cast<ll_node *>(static_cast<char *>(region) + page_offsets[i] * page_size);
 		nodes[i]->next = nullptr;
 		nodes[i]->data = 0;
 	}

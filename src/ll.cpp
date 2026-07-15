@@ -11,7 +11,6 @@
 
 #elif defined(__linux__)
 #include <sys/mman.h>
-#include <sys/types.h>
 
 #endif
 

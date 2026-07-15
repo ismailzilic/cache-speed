@@ -11,8 +11,6 @@ class Timer
 
       public:
 	void TimeSnapshot();
-	double GetMicroseconds();
-	double GetMiliseconds();
 	double GetNanoseconds();
 };
 } // namespace Measurements

@@ -1,11 +1,12 @@
 #include "benchmark.h"
-#include "cache-info.h"
+#include "hw.h"
 
 int main()
 {
-	run_test(L1D_CAP, "L1D");
-	run_test(L2_CAP, "L2");
-	run_test(L3_CAP, "L3");
+	cache_size sizes = hw_poll_cache_sizes();
+	run_test(sizes.L1, "L1D");
+	run_test(sizes.L2, "L2");
+	run_test(sizes.L3, "L3");
 
 	return 0;
 }

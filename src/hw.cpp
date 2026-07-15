@@ -18,7 +18,7 @@ cache_size hw_poll_cache_sizes()
 	}
 
 	for (const auto &info : buffer) {
-		if (info.Relation != RelationCache)
+		if (info.Relationship != RelationCache)
 			continue;
 
 		const CACHE_DESCRIPTOR &cache = info.Cache;

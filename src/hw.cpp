@@ -6,7 +6,7 @@
 
 namespace fs = std::filesystem;
 
-static const char const *polling_path = "/sys/devices/system/cpu/cpu0/cache";
+static const char *const polling_path = "/sys/devices/system/cpu/cpu0/cache";
 
 // For debug
 template <typename Tx, typename Ty> void print_container(const std::vector<std::pair<Tx, Ty>> &entries)

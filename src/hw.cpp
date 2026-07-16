@@ -4,7 +4,7 @@
 
 #include <windows.h>
 
-cache_size hw_poll_cache_sizes()
+cache_size poll_cache_sizes()
 {
 	cache_size ret = {0};
 
@@ -47,7 +47,7 @@ namespace fs = std::filesystem;
 
 static const char *const polling_path = "/sys/devices/system/cpu/cpu0/cache";
 
-[[nodiscard]] static std::string hw_get_cache_info(const fs::path &path)
+[[nodiscard]] static std::string read_cache_file(const fs::path &path)
 {
 	std::string contents{};
 	std::ifstream fstream(path);
@@ -57,7 +57,7 @@ static const char *const polling_path = "/sys/devices/system/cpu/cpu0/cache";
 	return contents;
 }
 
-static void hw_rm_dup_entries(entries_vector &entries)
+static void remove_duplicate_entries(entries_vector &entries)
 {
 	std::unordered_set<std::string> seen{};
 
@@ -67,7 +67,7 @@ static void hw_rm_dup_entries(entries_vector &entries)
 	}
 }
 
-static void hw_clean_size_suffix(entries_vector &entries)
+static void strip_size_suffix(entries_vector &entries)
 {
 	for (size_t i = 0; i < entries.size(); ++i) {
 		std::string_view temp{entries[i].second.substr(0, entries[i].second.size() - 1)};
@@ -75,41 +75,41 @@ static void hw_clean_size_suffix(entries_vector &entries)
 	}
 }
 
-[[nodiscard]] static size_t hw_convert_to_num(const std::string &string)
+[[nodiscard]] static size_t parse_number(const std::string &string)
 {
 	size_t ret{};
 
 	try {
 		ret = std::stoul(string);
 	} catch (std::invalid_argument const &ex) {
-		std::cout << "hw_convert_to_num() failed: " << ex.what() << '\n';
+		std::cout << "parse_number() failed: " << ex.what() << '\n';
 	} catch (std::out_of_range const &ex) {
-		std::cout << "hw_convert_to_num() failed: " << ex.what() << '\n';
+		std::cout << "parse_number() failed: " << ex.what() << '\n';
 	}
 
 	return ret;
 }
 
-static cache_size hw_prep_return(const entries_vector &entries)
+static cache_size build_cache_size(const entries_vector &entries)
 {
 	cache_size ret = {0};
 
 	for (const auto &entry : entries) {
 		if (entry.first == "1") {
-			ret.L1 = hw_convert_to_num(entry.second);
+			ret.L1 = parse_number(entry.second);
 		}
 		else if (entry.first == "2") {
-			ret.L2 = hw_convert_to_num(entry.second);
+			ret.L2 = parse_number(entry.second);
 		}
 		else if (entry.first == "3") {
-			ret.L3 = hw_convert_to_num(entry.second);
+			ret.L3 = parse_number(entry.second);
 		}
 	}
 
 	return ret;
 }
 
-cache_size hw_poll_cache_sizes()
+cache_size poll_cache_sizes()
 {
 	entries_vector cache_entries{};
 	cache_entries.reserve(4);
@@ -124,11 +124,11 @@ cache_size hw_poll_cache_sizes()
 
 			if (i->is_regular_file()) {
 				if (i->path().filename().string() == "level") {
-					level = hw_get_cache_info(i->path());
+					level = read_cache_file(i->path());
 				}
 
 				if (i->path().filename().string() == "size") {
-					size = hw_get_cache_info(i->path());
+					size = read_cache_file(i->path());
 				}
 			}
 
@@ -147,10 +147,10 @@ cache_size hw_poll_cache_sizes()
 		std::cerr << "filesystem error: " << error.what() << std::endl;
 	}
 
-	hw_rm_dup_entries(cache_entries);
-	hw_clean_size_suffix(cache_entries);
+	remove_duplicate_entries(cache_entries);
+	strip_size_suffix(cache_entries);
 
-	return hw_prep_return(cache_entries);
+	return build_cache_size(cache_entries);
 }
 
 #endif

@@ -17,7 +17,7 @@
 
 #endif
 
-uint32_t vm_get_page_size(void)
+uint32_t get_page_size(void)
 {
 #if defined(_WIN32)
 	SYSTEM_INFO sysinfo;

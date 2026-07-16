@@ -19,7 +19,7 @@ random_cycle make_random_cycle(size_t count)
 	std::random_device rd;
 	std::mt19937 rng{rd()};
 
-	const size_t page_size = vm_get_page_size();
+	const size_t page_size = get_page_size();
 	size_t region_size = count * page_size;
 
 #if defined(_WIN32)

@@ -13,4 +13,4 @@ struct cache_size {
 	uint32_t L3;
 };
 
-cache_size hw_poll_cache_sizes();
+cache_size poll_cache_sizes();

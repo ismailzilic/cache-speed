@@ -2,5 +2,5 @@
 
 #include <cstdint>
 
-uint32_t vm_get_page_size(void);
+uint32_t get_page_size(void);
 

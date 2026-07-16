@@ -4,7 +4,8 @@
 #include <string>
 #include <vector>
 
-#define HELP 			0b10000000
-#define NO_PREFETCHER 		0b01000000
+#define HELP 0b10000000
+#define NO_PREFETCHER 0b01000000
 
-void handle_flags(char **flags, const size_t count);
+[[nodiscard]] uint16_t handle_flags(const int count, char **flags);
+void print_help();

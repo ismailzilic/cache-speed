@@ -1,5 +1,6 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 
-void run_test(size_t set_size, const char *label);
+void delegate_tests(const uint16_t flags);

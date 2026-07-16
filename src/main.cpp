@@ -1,12 +1,10 @@
 #include "benchmark.h"
-#include "hw.h"
+#include "user-flags.h"
 
-int main()
+int main(int argc, char **argv)
 {
-	cache_size sizes = poll_cache_sizes();
-	run_test(sizes.L1, "L1D");
-	run_test(sizes.L2, "L2");
-	run_test(sizes.L3, "L3");
+	uint16_t flags = handle_flags(argc, argv);
+	delegate_tests(flags);
 
 	return 0;
 }

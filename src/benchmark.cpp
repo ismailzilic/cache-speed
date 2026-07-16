@@ -1,16 +1,11 @@
 #include "benchmark.h"
+#include "hw.h"
 #include "ll.h"
 #include "timer.h"
+#include "user-flags.h"
 #include "util.h"
 
-#include <cstdint>
 #include <iostream>
-
-#if defined(_WIN32)
-#include <windows.h>
-#elif defined(__linux__)
-#include <sys/mman.h>
-#endif
 
 template <typename Fn> static double measure_cache(ll_node *p, const size_t repeats, const size_t set_size, Fn per_node)
 {
@@ -48,11 +43,15 @@ template <typename Fn> static double make_measurement(const random_cycle &cycle,
 	return measure_cache(p, repeat_test, set_size, per_node);
 }
 
-void run_test(size_t set_size, const char *label)
+static void run_test(const char *label, size_t set_size, uint16_t flags)
 {
+	random_cycle cycle;
+	size_t nodes{};
+
 	constexpr size_t cache_line_size = 64;
-	size_t nodes = static_cast<size_t>((set_size * 1024 * 0.8) / cache_line_size);
-	random_cycle cycle = make_random_cycle(nodes);
+	nodes = static_cast<size_t>((set_size * 1024 * 0.8) / cache_line_size);
+
+	cycle = make_random_cycle(nodes, flags);
 
 	double read_ns = make_measurement(cycle, nodes, [](ll_node *, size_t) {});
 	double write_ns = make_measurement(cycle, nodes, [](ll_node *p, size_t i) { p->data = i; });
@@ -60,9 +59,19 @@ void run_test(size_t set_size, const char *label)
 	std::cout << label << " read time: " << read_ns << "ns | " << read_ns / 1000.0 << "us" << std::endl;
 	std::cout << label << " write time: " << write_ns << "ns | " << write_ns / 1000.0 << "us" << std::endl;
 
-#if defined(_WIN32)
-	VirtualFree(cycle.region, 0, MEM_RELEASE);
-#elif defined(__linux__)
-	munmap(cycle.region, cycle.region_size);
-#endif
+	destroy_random_cycle(cycle);
+}
+
+void delegate_tests(const uint16_t flags)
+{
+	if (flags & HELP) {
+		print_help();
+		return;
+	}
+
+	cache_size sizes = poll_cache_sizes();
+
+	run_test("L1D", sizes.L1, flags);
+	run_test("L2", sizes.L2, flags);
+	run_test("L3", sizes.L3, flags);
 }

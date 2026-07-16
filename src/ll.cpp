@@ -1,4 +1,5 @@
 #include "ll.h"
+#include "user-flags.h"
 #include "vm.h"
 
 #include <algorithm>
@@ -14,7 +15,7 @@
 
 #endif
 
-random_cycle make_random_cycle(size_t count)
+random_cycle make_random_cycle(size_t count, uint16_t flags)
 {
 	std::random_device rd;
 	std::mt19937 rng{rd()};
@@ -34,12 +35,17 @@ random_cycle make_random_cycle(size_t count)
 		throw std::runtime_error("memory mapping failed.\n");
 	}
 
-	madvise(region, region_size, MADV_RANDOM);
+	if (flags & NO_PREFETCHER) {
+		madvise(region, region_size, MADV_RANDOM);
+	}
 #endif
 
 	std::vector<size_t> page_offsets(count);
 	std::iota(page_offsets.begin(), page_offsets.end(), 0);
-	std::shuffle(page_offsets.begin(), page_offsets.end(), rng);
+
+	if (flags & NO_PREFETCHER) {
+		std::shuffle(page_offsets.begin(), page_offsets.end(), rng);
+	}
 
 	std::vector<ll_node *> nodes(count);
 	for (size_t i = 0; i < count; ++i) {
@@ -53,4 +59,19 @@ random_cycle make_random_cycle(size_t count)
 	}
 
 	return {nodes, region, region_size};
+}
+
+void destroy_random_cycle(random_cycle &cycle)
+{
+	if (cycle.region != nullptr) {
+#if defined(_WIN32)
+		VirtualFree(cycle.region, 0, MEM_RELEASE);
+#elif defined(__linux__)
+		munmap(cycle.region, cycle.region_size);
+#endif
+	}
+
+	cycle.nodes.clear();
+	cycle.region = nullptr;
+	cycle.region_size = 0;
 }

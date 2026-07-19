@@ -20,7 +20,7 @@ static void define_valid_flags(std::vector<std::string_view> &valid_flags_vector
 	uint16_t flags_byte{};
 	std::string_view command_name = flags_vector[0];
 	std::vector<std::string_view> valid_flags;
-	valid_flags.reserve(flags_vector.size());
+	valid_flags.reserve(FLAG_COUNT);
 	define_valid_flags(valid_flags, command_name);
 
 	std::unordered_set<std::string> valid_flags_set(valid_flags.begin(), valid_flags.end());
